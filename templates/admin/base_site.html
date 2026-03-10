@@ -1,0 +1,331 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}" style="color: white; text-decoration: none; display: flex; align-items: center;">
+        <i class="fas fa-rss" style="margin-right: 10px; color: #ffd700;"></i>
+        <span style="font-weight: 300;">{{ site_header|default:_('Django administration') }}</span>
+    </a>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* Общие стили в теме сайта */
+    :root {
+        --primary: #4361ee;
+        --secondary: #3f37c9;
+        --accent: #4895ef;
+        --primary-fg: #fff;
+        --body-fg: #333;
+        --body-bg: #f8f9fa;
+        --body-quiet-color: #666;
+        --body-loud-color: #000;
+        --header-color: #fff;
+        --header-branding-color: #fff;
+        --breadcrumbs-fg: #f8f9fa;
+        --breadcrumbs-link-fg: #fff;
+        --breadcrumbs-bg: var(--secondary);
+        --link-fg: #4361ee;
+        --link-hover-color: #3a0ca3;
+        --link-selected-fg: #3a0ca3;
+        --hairline-color: #e9ecef;
+        --border-color: #dee2e6;
+        --error-fg: #dc3545;
+        --message-success-bg: #d4edda;
+        --message-warning-bg: #fff3cd;
+        --message-error-bg: #f8d7da;
+        --darkened-bg: #e9ecef;
+        --selected-bg: #e2e6ea;
+        --selected-row: #cfe2ff;
+        --button-fg: #fff;
+        --button-bg: var(--primary);
+        --button-hover-bg: var(--secondary);
+        --default-button-bg: var(--primary);
+        --default-button-hover-bg: var(--secondary);
+        --close-button-bg: #6c757d;
+        --close-button-hover-bg: #5a6268;
+        --delete-button-bg: #dc3545;
+        --delete-button-hover-bg: #c82333;
+    }
+
+    /* Кастомные стили */
+    #header {
+        background: linear-gradient(135deg, #4361ee, #3a0ca3);
+        color: var(--header-color);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 15px 40px;
+        border-bottom: none;
+    }
+
+    #branding h1 {
+        color: var(--header-branding-color);
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin: 0;
+        padding: 0;
+    }
+
+    #branding h1 a {
+        color: var(--header-branding-color);
+    }
+
+    #user-tools {
+        font-size: 0.9rem;
+        padding: 0;
+    }
+
+    #user-tools a {
+        color: rgba(255,255,255,0.8);
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s;
+        padding-bottom: 5px;
+    }
+
+    #user-tools a:hover {
+        color: #fff;
+        border-bottom-color: #ffd700;
+    }
+
+    .module h2, .module caption, .inline-group h2 {
+        background: linear-gradient(135deg, #4361ee, #3a0ca3);
+        color: #fff;
+        padding: 12px 15px;
+        font-size: 14px;
+        margin: 0;
+        border-radius: 8px 8px 0 0;
+    }
+
+    div.breadcrumbs {
+        background: #3a0ca3;
+        color: var(--breadcrumbs-fg);
+        padding: 12px 40px;
+        border-bottom: none;
+        font-size: 13px;
+    }
+
+    div.breadcrumbs a {
+        color: var(--breadcrumbs-link-fg);
+        opacity: 0.9;
+    }
+
+    div.breadcrumbs a:hover {
+        opacity: 1;
+        text-decoration: underline;
+    }
+
+    .module {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+
+    .module table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+    }
+
+    .module thead th {
+        background: #f8f9fa;
+        color: var(--body-fg);
+        font-weight: 600;
+        padding: 12px 10px;
+        border-bottom: 2px solid var(--primary);
+    }
+
+    .module tbody tr:hover {
+        background: #f1f3f5;
+    }
+
+    .module tbody tr.selected {
+        background: var(--selected-row);
+    }
+
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        background: var(--button-bg);
+        color: var(--button-fg);
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .button:hover, input[type=submit]:hover, input[type=button]:hover, .submit-row input:hover, a.button:hover {
+        background: var(--button-hover-bg);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .button.default, input[type=submit].default, .submit-row input.default {
+        background: var(--default-button-bg);
+        font-weight: 600;
+    }
+
+    .button.default:hover, input[type=submit].default:hover, .submit-row input.default:hover {
+        background: var(--default-button-hover-bg);
+    }
+
+    .deletelink {
+        background: var(--delete-button-bg);
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .deletelink:hover {
+        background: var(--delete-button-hover-bg);
+        transform: translateY(-1px);
+    }
+
+    .form-row {
+        padding: 15px;
+        border-bottom: 1px solid var(--hairline-color);
+    }
+
+    .form-row:last-child {
+        border-bottom: none;
+    }
+
+    .aligned label {
+        color: var(--body-fg);
+        font-weight: 500;
+        width: 160px;
+        padding: 8px 10px 0 0;
+    }
+
+    input, textarea, select, .vTextField {
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 13px;
+        transition: all 0.3s;
+        background: #fff;
+    }
+
+    input:focus, textarea:focus, select:focus, .vTextField:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+
+    .paginator {
+        background: #f8f9fa;
+        padding: 15px;
+        border-top: 1px solid var(--border-color);
+        border-radius: 0 0 8px 8px;
+        margin: 0;
+    }
+
+    .paginator a {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        color: var(--link-fg);
+        padding: 5px 12px;
+        border-radius: 20px;
+        margin: 0 2px;
+        transition: all 0.3s;
+    }
+
+    .paginator a:hover {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+
+    .paginator .this-page {
+        background: var(--primary);
+        color: #fff;
+        border: 1px solid var(--primary);
+        padding: 5px 12px;
+        border-radius: 20px;
+        margin: 0 2px;
+        font-weight: 500;
+    }
+
+    /* Кастомные бейджи для статусов */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-badge.active {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        box-shadow: 0 2px 5px rgba(40, 167, 69, 0.3);
+    }
+
+    .status-badge.inactive {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3);
+    }
+
+    .status-badge.pending {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: white;
+        box-shadow: 0 2px 5px rgba(255, 193, 7, 0.3);
+    }
+
+    /* Анимации */
+    .dashboard .module table th, .dashboard .module table td {
+        transition: background-color 0.3s;
+    }
+
+    /* Адаптивность */
+    @media (max-width: 767px) {
+        #header {
+            padding: 15px 20px;
+        }
+        
+        div.breadcrumbs {
+            padding: 12px 20px;
+        }
+        
+        .aligned label {
+            width: auto;
+            display: block;
+            padding: 0 0 5px 0;
+        }
+    }
+
+    /* Иконки для моделей */
+    .model-group:before {
+        font-family: 'Font Awesome 6 Free';
+        content: '\f0c0';
+        margin-right: 5px;
+    }
+
+    .model-user:before {
+        font-family: 'Font Awesome 6 Free';
+        content: '\f007';
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% endblock %}

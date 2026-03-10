@@ -1,0 +1,455 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Главная - Новостной агрегатор{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Фильтры -->
+    <div class="col-12 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form method="get" id="filter-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="fas fa-search text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control border-start-0" 
+                                       name="query" 
+                                       placeholder="Поиск по заголовкам и тексту..." 
+                                       value="{{ request.GET.query }}">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="category" class="form-select">
+                                <option value="">Все категории</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="source" class="form-select">
+                                <option value="">Все источники</option>
+                                {% for source in sources %}
+                                    <option value="{{ source.id }}" {% if request.GET.source == source.id|stringformat:"i" %}selected{% endif %}>
+                                        {{ source.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-2"></i>Применить
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Быстрые фильтры по дате -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="btn-group" role="group">
+                                <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=today" 
+                                   class="btn btn-outline-secondary {% if request.GET.date == 'today' %}active{% endif %}">
+                                    Сегодня
+                                </a>
+                                <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=week" 
+                                   class="btn btn-outline-secondary {% if request.GET.date == 'week' %}active{% endif %}">
+                                    Неделя
+                                </a>
+                                <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=month" 
+                                   class="btn btn-outline-secondary {% if request.GET.date == 'month' %}active{% endif %}">
+                                    Месяц
+                                </a>
+                                <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=all" 
+                                   class="btn btn-outline-secondary {% if request.GET.date == 'all' %}active{% endif %}">
+                                    За всё время
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Сохранение фильтра (для авторизованных) -->
+                    {% if user.is_authenticated %}
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#saveFilterModal">
+                                    <i class="far fa-save me-1"></i>Сохранить текущий фильтр как подборку
+                                </button>
+                                <span class="text-muted mx-2">|</span>
+                                <button type="button" class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#subscribeModal">
+                                    <i class="far fa-bell me-1"></i>Подписаться на этот фильтр
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основной контент: лента новостей и сайдбар -->
+    <div class="col-lg-8">
+        <!-- Лента новостей -->
+        {% for article in articles %}
+            <div class="card border-0 shadow-sm mb-4 hover-card">
+                <div class="row g-0">
+                    {% if article.image_url %}
+                        <div class="col-md-3">
+                            <img src="{{ article.image_url }}" class="img-fluid rounded-start h-100 object-fit-cover" alt="{{ article.title }}" style="max-height: 200px;">
+                        </div>
+                        <div class="col-md-9">
+                    {% else %}
+                        <div class="col-12">
+                    {% endif %}
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-light text-dark me-2">
+                                    <i class="fas fa-dot-circle text-primary me-1" style="font-size: 0.5rem;"></i>
+                                    {{ article.source.name }}
+                                </span>
+                                <span class="text-muted small me-2">
+                                    <i class="far fa-clock me-1"></i>{{ article.published_at|timesince }} назад
+                                </span>
+                                {% if article.category %}
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-tag me-1"></i>{{ article.category.name }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            
+                            <h5 class="card-title">
+                                <a href="{% url 'news:article_detail' article.pk %}" class="text-decoration-none text-dark">
+                                    {{ article.title }}
+                                </a>
+                            </h5>
+                            
+                            <p class="card-text text-muted">{{ article.excerpt|default:article.content|truncatewords:30 }}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-muted small">
+                                    <i class="far fa-eye me-1"></i>{{ article.views }} просмотров
+                                </div>
+                                <div>
+                                    <a href="{% url 'news:save_article' article.pk %}" class="btn btn-outline-danger btn-sm {% if article.pk in saved_ids %}active{% endif %}">
+                                        <i class="{% if article.pk in saved_ids %}fas{% else %}far{% endif %} fa-bookmark me-1"></i>
+                                        {% if article.pk in saved_ids %}Сохранено{% else %}Сохранить{% endif %}
+                                    </a>
+                                    <button class="btn btn-outline-secondary btn-sm share-btn" data-url="{{ article.get_absolute_url }}">
+                                        <i class="far fa-share-square"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center py-5">
+                <i class="fas fa-newspaper fa-4x text-muted mb-3"></i>
+                <h5>Новостей не найдено</h5>
+                <p class="text-muted">Попробуйте изменить параметры фильтрации</p>
+            </div>
+        {% endfor %}
+
+        <!-- Пагинация -->
+        {% if articles.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if articles.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ articles.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in articles.paginator.page_range %}
+                        {% if articles.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > articles.number|add:'-3' and num < articles.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if articles.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ articles.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ articles.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+
+    <!-- Сайдбар -->
+    <div class="col-lg-4">
+        <!-- Блок пользователя (для авторизованных) -->
+        {% if user.is_authenticated %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                            {{ user.username|first|upper }}
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ user.username }}</h6>
+                            <small class="text-muted">{{ user.email }}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between text-center">
+                        <div>
+                            <div class="fw-bold">{{ user.saved_articles.count }}</div>
+                            <small class="text-muted">Сохранено</small>
+                        </div>
+                        <div>
+                            <div class="fw-bold">{{ user.collections.count }}</div>
+                            <small class="text-muted">Подборок</small>
+                        </div>
+                        <div>
+                            <div class="fw-bold">{{ user.subscriptions.count }}</div>
+                            <small class="text-muted">Подписок</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Популярные категории -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0">
+                <h6 class="mb-0"><i class="fas fa-chart-line me-2 text-primary"></i>Популярные категории</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    {% for category in categories|slice:":10" %}
+                        <a href="?category={{ category.id }}" class="badge bg-light text-dark text-decoration-none p-2">
+                            {{ category.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Популярные теги (если есть) -->
+        {% if popular_tags %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0"><i class="fas fa-tags me-2 text-primary"></i>Часто ищут</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for tag in popular_tags %}
+                            <a href="?query={{ tag.title|urlencode }}" class="badge bg-light text-dark text-decoration-none p-2">
+                                #{{ tag.title|truncatechars:15 }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Источники -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0">
+                <h6 class="mb-0"><i class="fas fa-server me-2 text-primary"></i>Активные источники</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for source in sources|slice:":8" %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <a href="?source={{ source.id }}" class="text-decoration-none text-dark">
+                                {{ source.name }}
+                            </a>
+                            <span class="badge bg-primary rounded-pill">{{ source.articles.count }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if sources.count > 8 %}
+                    <a href="{% url 'news:sources' %}" class="btn btn-link text-decoration-none mt-2">Все источники →</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для сохранения фильтра -->
+{% if user.is_authenticated %}
+    <div class="modal fade" id="saveFilterModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Сохранить фильтр как подборку</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{% url 'news:save_filter' %}" method="post">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <input type="hidden" name="filter_data" value='{{ request.GET.urlencode }}'>
+                        <div class="mb-3">
+                            <label class="form-label">Название подборки</label>
+                            <input type="text" class="form-control" name="name" required 
+                                   placeholder="Например: Технологии за неделю">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Параметры фильтра</label>
+                            <div class="bg-light p-3 rounded">
+                                {% for key, value in request.GET.items %}
+                                    {% if key != 'page' %}
+                                        <div><strong>{{ key }}:</strong> {{ value }}</div>
+                                    {% endif %}
+                                {% empty %}
+                                    <div class="text-muted">Фильтры не применены (будет сохранена основная лента)</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для подписки -->
+    <div class="modal fade" id="subscribeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подписаться на этот фильтр</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{% url 'news:subscribe' %}" method="post">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <p>Вы будете получать уведомления о новых статьях по этому фильтру:</p>
+                        <div class="bg-light p-3 rounded mb-3">
+                            {% for key, value in request.GET.items %}
+                                {% if key != 'page' %}
+                                    <div><strong>{{ key }}:</strong> {{ value }}</div>
+                                {% endif %}
+                            {% empty %}
+                                <div class="text-muted">Все новые статьи</div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="email_digest" id="emailDigest" checked>
+                            <label class="form-check-label" for="emailDigest">
+                                Получать дайджест на email
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="push_notifications" id="pushNotifications">
+                            <label class="form-check-label" for="pushNotifications">
+                                Push-уведомления
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Подписаться</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Добавляем стили -->
+<style>
+    .hover-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .hover-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08) !important;
+    }
+    .object-fit-cover {
+        object-fit: cover;
+    }
+    .avatar {
+        font-weight: 600;
+    }
+    .pagination .page-link {
+        color: #333;
+        border: none;
+        margin: 0 2px;
+        border-radius: 8px;
+    }
+    .pagination .active .page-link {
+        background-color: #0d6efd;
+        color: white;
+    }
+    .btn-outline-secondary.active {
+        background-color: #e9ecef;
+        color: #333;
+        border-color: #ced4da;
+    }
+    .badge.bg-light {
+        background-color: #f8f9fa !important;
+        border: 1px solid #e9ecef;
+    }
+    .badge.bg-light:hover {
+        background-color: #e9ecef !important;
+    }
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
+
+<!-- Добавляем JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Кнопки поделиться
+        document.querySelectorAll('.share-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const url = window.location.origin + this.dataset.url;
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Новость',
+                        url: url
+                    }).catch(console.error);
+                } else {
+                    navigator.clipboard.writeText(url).then(() => {
+                        alert('Ссылка скопирована в буфер обмена');
+                    });
+                }
+            });
+        });
+
+        // Автоматическое скрытие алертов через 5 секунд
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    });
+</script>
+{% endblock %}

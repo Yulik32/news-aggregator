@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Создание подборки{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <h4 class="mb-0">Создание новой подборки</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Название подборки *</label>
+                        <input type="text" 
+                               name="{{ form.name.html_name }}" 
+                               id="{{ form.name.id_for_label }}" 
+                               class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                               value="{{ form.name.value|default:'' }}"
+                               required>
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.name.errors|join:", " }}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Придумайте короткое и понятное название</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Описание</label>
+                        <textarea name="{{ form.description.html_name }}" 
+                                  id="{{ form.description.id_for_label }}" 
+                                  class="form-control {% if form.description.errors %}is-invalid{% endif %}"
+                                  rows="3">{{ form.description.value|default:'' }}</textarea>
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.description.errors|join:", " }}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Кратко опишите, о чем эта подборка (необязательно)</small>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" 
+                               name="{{ form.is_public.html_name }}" 
+                               id="{{ form.is_public.id_for_label }}" 
+                               class="form-check-input"
+                               {% if form.is_public.value %}checked{% endif %}>
+                        <label class="form-check-label" for="{{ form.is_public.id_for_label }}">
+                            Сделать подборку публичной
+                        </label>
+                        <br>
+                        <small class="text-muted">Публичные подборки могут видеть другие пользователи</small>
+                    </div>
+                    
+                    {% if filter_data %}
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="fas fa-filter me-2"></i>Будет создана подборка из текущего фильтра</h6>
+                            <hr>
+                            <p class="mb-0 small">Параметры фильтра: <code>{{ filter_data }}</code></p>
+                            <input type="hidden" name="filter_data" value='{{ filter_data|escapejs }}'>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'news:collections' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Отмена
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Создать подборку
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

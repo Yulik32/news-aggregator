@@ -1,0 +1,48 @@
+{% load static %}
+<header class="header bg-white border-bottom">
+    <div class="container">
+        <div class="d-flex flex-wrap align-items-center justify-content-between py-3">
+            <div class="d-flex align-items-center">
+                <a href="{% url 'news:index' %}" class="text-dark text-decoration-none fs-3 fw-bold">
+                    <i class="fas fa-rss text-primary me-2"></i>News<span class="fw-light">Agg</span>
+                </a>
+                <nav class="ms-5">
+                    <ul class="nav">
+                        <li class="nav-item"><a href="{% url 'news:index' %}" class="nav-link px-3 {% if request.resolver_match.url_name == 'index' %}active fw-semibold{% endif %}">Лента</a></li>
+                        <li class="nav-item"><a href="{% url 'news:saved_articles' %}" class="nav-link px-3 {% if request.resolver_match.url_name == 'saved_articles' %}active fw-semibold{% endif %}">Сохранённое</a></li>
+                        <li class="nav-item"><a href="{% url 'news:collections' %}" class="nav-link px-3 {% if request.resolver_match.url_name == 'collections' %}active fw-semibold{% endif %}">Подборки</a></li>
+                        <li class="nav-item"><a href="{% url 'news:sources' %}" class="nav-link px-3 {% if request.resolver_match.url_name == 'sources' %}active fw-semibold{% endif %}">Источники</a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="d-flex align-items-center">
+                {% if user.is_authenticated %}
+                    
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-light rounded-circle p-2" type="button" data-bs-toggle="dropdown">
+                            <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                {{ user.username|first|upper }}
+                            </div>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Профиль</a></li>
+                            <li><a class="dropdown-item" href="{% url 'news:collections' %}">Мои подборки</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="{% url 'accounts:logout' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">Выйти</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-outline-primary me-2">Войти</a>
+                    <a href="{% url 'accounts:register' %}" class="btn btn-primary">Регистрация</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</header>
