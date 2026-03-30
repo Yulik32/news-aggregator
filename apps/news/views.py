@@ -6,10 +6,11 @@ from django.db.models import Q, Count
 from django.utils import timezone
 from django.http import JsonResponse
 from datetime import timedelta
+from django.contrib.auth.decorators import user_passes_test
 import json
 
-from .models import Article, Category, Source, SavedArticle, Collection, CollectionItem, UserFilter, Subscription
-from .forms import ArticleSearchForm, CollectionForm
+from .models import Article, Category, Source, SavedArticle, UserFilter, Subscription, Comment
+from .forms import ArticleSearchForm, CommentForm
 
 
 def index(request):
@@ -149,114 +150,6 @@ def saved_articles(request):
 
 
 @login_required
-def collections(request):
-    """Список подборок пользователя"""
-    collections = Collection.objects.filter(user=request.user).annotate(
-        articles_count=Count('collectionitem')  # вместо 'articles'
-    ).order_by('-created_at')
-    
-    context = {
-        'collections': collections,
-    }
-    return render(request, 'news/collections.html', context)
-
-
-@login_required
-def collection_detail(request, pk):
-    """Детальная страница подборки"""
-    collection = get_object_or_404(Collection, pk=pk, user=request.user)
-    items = collection.collectionitem_set.select_related('article', 'article__source').order_by('-added_at')
-    
-    context = {
-        'collection': collection,
-        'items': items,
-    }
-    return render(request, 'news/collection_detail.html', context)
-
-
-@login_required
-def create_collection(request):
-    """Создание новой подборки"""
-    if request.method == 'POST':
-        form = CollectionForm(request.POST)
-        if form.is_valid():
-            collection = form.save(commit=False)
-            collection.user = request.user
-            collection.save()
-            
-            # Сохраняем данные фильтра, если есть
-            filter_data = request.POST.get('filter_data')
-            if filter_data:
-                try:
-                    collection.filter_data = json.loads(filter_data)
-                except:
-                    collection.filter_data = {}
-                collection.save()
-            
-            messages.success(request, 'Подборка создана')
-            return redirect('news:collection_detail', pk=collection.pk)
-    else:
-        form = CollectionForm()
-        # Передаём данные фильтра из GET-параметров
-        filter_data = request.GET.get('filter_data', '{}')
-    
-    context = {
-        'form': form,
-        'filter_data': filter_data,
-    }
-    return render(request, 'news/collection_form.html', context)
-
-
-@login_required
-def add_to_collection(request):
-    """Добавление статьи в подборку"""
-    if request.method == 'POST':
-        article_id = request.POST.get('article_id')
-        collection_id = request.POST.get('collection_id')
-        
-        article = get_object_or_404(Article, pk=article_id)
-        collection = get_object_or_404(Collection, pk=collection_id, user=request.user)
-        
-        item, created = CollectionItem.objects.get_or_create(
-            collection=collection,
-            article=article
-        )
-        
-        if created:
-            messages.success(request, f'Статья добавлена в подборку "{collection.name}"')
-        else:
-            messages.info(request, f'Статья уже есть в подборке "{collection.name}"')
-        
-        return redirect('news:article_detail', pk=article_id)
-    
-    return redirect('news:index')
-
-
-@login_required
-def remove_from_collection(request, collection_id, article_id):
-    """Удаление статьи из подборки"""
-    collection = get_object_or_404(Collection, pk=collection_id, user=request.user)
-    article = get_object_or_404(Article, pk=article_id)
-    
-    CollectionItem.objects.filter(
-        collection=collection,
-        article=article
-    ).delete()
-    
-    messages.success(request, f'Статья удалена из подборки "{collection.name}"')
-    return redirect('news:collection_detail', pk=collection_id)
-
-
-@login_required
-def delete_collection(request, pk):
-    """Удаление подборки"""
-    collection = get_object_or_404(Collection, pk=pk, user=request.user)
-    collection.delete()
-    messages.success(request, 'Подборка удалена')
-    return redirect('news:collections')
-
-
-@login_required
 def save_filter(request):
     """Сохранение текущего фильтра"""
     if request.method == 'POST':
@@ -281,40 +174,6 @@ def save_filter(request):
             messages.error(request, 'Ошибка при сохранении фильтра')
     
     return redirect(request.META.get('HTTP_REFERER', 'news:index'))
-
-
-@login_required
-def subscribe(request):
-    """Подписка на обновления по фильтру"""
-    if request.method == 'POST':
-        filter_data = request.POST.get('filter_data', '')
-        email_digest = request.POST.get('email_digest') == 'on'
-        push_notifications = request.POST.get('push_notifications') == 'on'
-        
-        # Парсим параметры фильтра
-        from urllib.parse import parse_qs
-        try:
-            if filter_data.startswith('{'):
-                filter_dict = json.loads(filter_data)
-            else:
-                filter_dict = parse_qs(filter_data)
-                for key in filter_dict:
-                    filter_dict[key] = filter_dict[key][0] if filter_dict[key] else ''
-        except:
-            filter_dict = {}
-        
-        # Создаём подписку
-        subscription = Subscription.objects.create(
-            user=request.user,
-            filter_data=filter_dict,
-            email_digest=email_digest,
-            push_notifications=push_notifications
-        )
-        
-        messages.success(request, 'Вы успешно подписались на обновления')
-        return redirect(request.META.get('HTTP_REFERER', 'news:index'))
-    
-    return redirect('news:index')
 
 
 def sources(request):
@@ -381,3 +240,111 @@ def custom_404(request, exception):
 def custom_500(request):
     """Кастомная страница 500"""
     return render(request, 'errors/500.html', status=500)
+
+def admin_required(user):
+    return user.is_authenticated and user.is_staff
+
+@user_passes_test(admin_required)
+def sources(request):
+    """Список источников новостей (только для админов)"""
+    sources = Source.objects.filter(is_active=True).order_by('name')
+    categories = Category.objects.all()
+    
+    context = {
+        'sources': sources,
+        'categories': categories,
+    }
+    return render(request, 'news/sources.html', context)
+
+@user_passes_test(admin_required)
+def source_detail(request, pk):
+    """Статьи из конкретного источника (только для админов)"""
+    source = get_object_or_404(Source, pk=pk, is_active=True)
+    articles = Article.objects.filter(
+        source=source, is_active=True
+    ).select_related('category').order_by('-published_at')
+    
+    paginator = Paginator(articles, 10)
+    page = request.GET.get('page', 1)
+    articles_page = paginator.get_page(page)
+    
+    context = {
+        'source': source,
+        'articles': articles_page,
+    }
+    return render(request, 'news/source_detail.html', context)
+
+
+@login_required
+def add_comment(request, article_id):
+    """Добавление комментария к статье"""
+    article = get_object_or_404(Article, pk=article_id, is_active=True)
+    
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.article = article
+            comment.user = request.user
+            comment.save()
+            
+            # Проверяем, были ли замены в тексте
+            warnings = getattr(form, 'warnings', [])
+            
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'comment': {
+                        'id': comment.id,
+                        'text': comment.text,
+                        'user': comment.user.username,
+                        'created_at': comment.created_at.strftime('%d.%m.%Y %H:%M'),
+                        'is_edited': comment.is_edited,
+                        'warnings': warnings
+                    }
+                })
+            
+            if warnings:
+                messages.warning(request, ' '.join(warnings))
+            else:
+                messages.success(request, 'Комментарий добавлен')
+            
+            return redirect('news:article_detail', pk=article_id)
+        else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+    
+    return redirect('news:article_detail', pk=article_id)
+
+@login_required
+def edit_comment(request, comment_id):
+    """Редактирование комментария"""
+    comment = get_object_or_404(Comment, pk=comment_id, user=request.user)
+    
+    if request.method == 'POST':
+        form = CommentForm(request.POST, instance=comment)
+        
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.is_edited = True
+            comment.save()
+            
+            messages.success(request, 'Комментарий обновлён')
+            return redirect('news:article_detail', pk=comment.article.pk)
+    
+    return redirect('news:article_detail', pk=comment.article.pk)
+
+@login_required
+def delete_comment(request, comment_id):
+    """Удаление комментария"""
+    comment = get_object_or_404(Comment, pk=comment_id, user=request.user)
+    article_id = comment.article.pk
+    
+    comment.delete()
+    messages.success(request, 'Комментарий удалён')
+    
+    return redirect('news:article_detail', pk=article_id)

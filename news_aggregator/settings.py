@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-vw5i+tve@x)$s05(rfk=&wf5y1zua%+-xx$c)kfyixm=qb4#c-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = []
 
@@ -31,6 +32,11 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
+
+    'unfold.contrib.filters', 
+    'unfold.contrib.forms',    
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -56,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.news.middleware.AdminAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'news_aggregator.urls'
@@ -120,20 +127,54 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/admin'
+LOGIN_REDIRECT_URL = '/'
 ADMIN_SITE_HEADER = "Новостной агрегатор · Админ-панель"
 ADMIN_SITE_TITLE = "Новостной агрегатор"
 ADMIN_INDEX_TITLE = "Управление контентом"
+
+UNFOLD = {
+    "SITE_TITLE": "Новостной агрегатор",
+    "SITE_HEADER": "Новостной агрегатор",
+    "SITE_URL": "/",
+    "SHOW_VIEW_ON_SITE": True,
+    
+    # Настройки форм
+    "FORM_SUBMIT_BUTTON_CLASSES": "bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg",
+    "FORM_CANCEL_BUTTON_CLASSES": "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg",
+    
+    # Табы в формах
+    "TABS": [
+        {
+            "models": [
+                "apps.news.models.Source",
+            ],
+            "items": [
+                {
+                    "title": "Основная информация",
+                    "link": "Основная информация",
+                    "icon": "info",
+                },
+                {
+                    "title": "Статус и настройки",
+                    "link": "Статус и настройки",
+                    "icon": "settings",
+                },
+            ],
+        },
+    ],
+}

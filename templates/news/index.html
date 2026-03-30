@@ -1,7 +1,9 @@
+<!-- Филатова Юля, ИСП-422р -->
+
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Главная - Новостной агрегатор{% endblock %}
+{% block title %}Главная - Сборник новостей{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -17,14 +19,15 @@
                                     <i class="fas fa-search text-muted"></i>
                                 </span>
                                 <input type="text" 
-                                       class="form-control border-start-0" 
-                                       name="query" 
-                                       placeholder="Поиск по заголовкам и тексту..." 
-                                       value="{{ request.GET.query }}">
+                                    class="form-control border-start-0" 
+                                    name="query" 
+                                    id="search-query"
+                                    placeholder="Поиск по заголовкам и тексту..." 
+                                    value="{{ request.GET.query }}">
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <select name="category" class="form-select">
+                            <select name="category" id="category-filter" class="form-select">
                                 <option value="">Все категории</option>
                                 {% for category in categories %}
                                     <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
@@ -34,7 +37,7 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <select name="source" class="form-select">
+                            <select name="source" id="source-filter" class="form-select">
                                 <option value="">Все источники</option>
                                 {% for source in sources %}
                                     <option value="{{ source.id }}" {% if request.GET.source == source.id|stringformat:"i" %}selected{% endif %}>
@@ -44,47 +47,92 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-2"></i>Применить
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">
+                                    Применить
+                                </button>
+                                <button type="button" id="reset-filters" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo-alt"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Быстрые фильтры по дате -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <div class="btn-group" role="group">
+                            <div class="btn-group" role="group" id="date-filter-group">
                                 <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=today" 
-                                   class="btn btn-outline-secondary {% if request.GET.date == 'today' %}active{% endif %}">
+                                class="btn btn-outline-secondary {% if request.GET.date == 'today' %}active{% endif %}">
                                     Сегодня
                                 </a>
                                 <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=week" 
-                                   class="btn btn-outline-secondary {% if request.GET.date == 'week' %}active{% endif %}">
+                                class="btn btn-outline-secondary {% if request.GET.date == 'week' %}active{% endif %}">
                                     Неделя
                                 </a>
                                 <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=month" 
-                                   class="btn btn-outline-secondary {% if request.GET.date == 'month' %}active{% endif %}">
+                                class="btn btn-outline-secondary {% if request.GET.date == 'month' %}active{% endif %}">
                                     Месяц
                                 </a>
                                 <a href="?{% if request.GET.query %}query={{ request.GET.query }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.source %}source={{ request.GET.source }}&{% endif %}date=all" 
-                                   class="btn btn-outline-secondary {% if request.GET.date == 'all' %}active{% endif %}">
+                                class="btn btn-outline-secondary {% if request.GET.date == 'all' %}active{% endif %}">
                                     За всё время
                                 </a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Сохранение фильтра (для авторизованных) -->
-                    {% if user.is_authenticated %}
+                    <!-- Активные фильтры (для отображения) -->
+                    {% if request.GET.query or request.GET.category or request.GET.source or request.GET.date %}
                         <div class="row mt-3">
                             <div class="col-12">
-                                <button type="button" class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#saveFilterModal">
-                                    <i class="far fa-save me-1"></i>Сохранить текущий фильтр как подборку
-                                </button>
-                                <span class="text-muted mx-2">|</span>
-                                <button type="button" class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#subscribeModal">
-                                    <i class="far fa-bell me-1"></i>Подписаться на этот фильтр
-                                </button>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <span class="text-muted small">Активные фильтры:</span>
+                                    {% if request.GET.query %}
+                                        <span class="badge bg-primary d-flex align-items-center gap-1">
+                                            Поиск: "{{ request.GET.query }}"
+                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'query' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-white text-decoration-none" data-remove-filter="query">
+                                                <i class="fas fa-times-circle ms-1"></i>
+                                            </a>
+                                        </span>
+                                    {% endif %}
+                                    {% if request.GET.category %}
+                                        {% for cat in categories %}
+                                            {% if cat.id|stringformat:"i" == request.GET.category %}
+                                                <span class="badge bg-success d-flex align-items-center gap-1">
+                                                    Категория: {{ cat.name }}
+                                                    <a href="?{% for key, value in request.GET.items %}{% if key != 'category' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-white text-decoration-none">
+                                                        <i class="fas fa-times-circle ms-1"></i>
+                                                    </a>
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if request.GET.source %}
+                                        {% for src in sources %}
+                                            {% if src.id|stringformat:"i" == request.GET.source %}
+                                                <span class="badge bg-info d-flex align-items-center gap-1">
+                                                    Источник: {{ src.name }}
+                                                    <a href="?{% for key, value in request.GET.items %}{% if key != 'source' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-white text-decoration-none">
+                                                        <i class="fas fa-times-circle ms-1"></i>
+                                                    </a>
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if request.GET.date %}
+                                        <span class="badge bg-warning text-dark d-flex align-items-center gap-1">
+                                            {% if request.GET.date == 'today' %}Сегодня
+                                            {% elif request.GET.date == 'week' %}Последняя неделя
+                                            {% elif request.GET.date == 'month' %}Последний месяц
+                                            {% elif request.GET.date == 'all' %}За всё время
+                                            {% endif %}
+                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'date' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-dark text-decoration-none">
+                                                <i class="fas fa-times-circle ms-1"></i>
+                                            </a>
+                                        </span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     {% endif %}
@@ -99,7 +147,12 @@
         {% for article in articles %}
             <div class="card border-0 shadow-sm mb-4 hover-card">
                 <div class="row g-0">
-                    {% if article.image_url %}
+                    {% if article.image %}
+                        <div class="col-md-3">
+                            <img src="{{ article.image.url }}" class="img-fluid rounded-start h-100 object-fit-cover" alt="{{ article.title }}" style="max-height: 200px;">
+                        </div>
+                        <div class="col-md-9">
+                    {% elif article.image_url %}
                         <div class="col-md-3">
                             <img src="{{ article.image_url }}" class="img-fluid rounded-start h-100 object-fit-cover" alt="{{ article.title }}" style="max-height: 200px;">
                         </div>
@@ -205,33 +258,27 @@
     <div class="col-lg-4">
         <!-- Блок пользователя (для авторизованных) -->
         {% if user.is_authenticated %}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
                         <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; font-size: 1.5rem;">
                             {{ user.username|first|upper }}
                         </div>
                         <div>
-                            <h6 class="mb-0">{{ user.username }}</h6>
+                            <h6 class="mb-0 fw-semibold">{{ user.username }}</h6>
                             <small class="text-muted">{{ user.email }}</small>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between text-center">
-                        <div>
-                            <div class="fw-bold">{{ user.saved_articles.count }}</div>
+                    <div class="d-flex gap-4">
+                        <div class="text-center">
+                            <div class="fw-bold fs-5 text-primary">{{ user.saved_articles.count }}</div>
                             <small class="text-muted">Сохранено</small>
-                        </div>
-                        <div>
-                            <div class="fw-bold">{{ user.collections.count }}</div>
-                            <small class="text-muted">Подборок</small>
-                        </div>
-                        <div>
-                            <div class="fw-bold">{{ user.subscriptions.count }}</div>
-                            <small class="text-muted">Подписок</small>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
         {% endif %}
 
         <!-- Популярные категории -->
@@ -292,89 +339,6 @@
     </div>
 </div>
 
-<!-- Модальное окно для сохранения фильтра -->
-{% if user.is_authenticated %}
-    <div class="modal fade" id="saveFilterModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Сохранить фильтр как подборку</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{% url 'news:save_filter' %}" method="post">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <input type="hidden" name="filter_data" value='{{ request.GET.urlencode }}'>
-                        <div class="mb-3">
-                            <label class="form-label">Название подборки</label>
-                            <input type="text" class="form-control" name="name" required 
-                                   placeholder="Например: Технологии за неделю">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Параметры фильтра</label>
-                            <div class="bg-light p-3 rounded">
-                                {% for key, value in request.GET.items %}
-                                    {% if key != 'page' %}
-                                        <div><strong>{{ key }}:</strong> {{ value }}</div>
-                                    {% endif %}
-                                {% empty %}
-                                    <div class="text-muted">Фильтры не применены (будет сохранена основная лента)</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно для подписки -->
-    <div class="modal fade" id="subscribeModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Подписаться на этот фильтр</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{% url 'news:subscribe' %}" method="post">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <p>Вы будете получать уведомления о новых статьях по этому фильтру:</p>
-                        <div class="bg-light p-3 rounded mb-3">
-                            {% for key, value in request.GET.items %}
-                                {% if key != 'page' %}
-                                    <div><strong>{{ key }}:</strong> {{ value }}</div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="text-muted">Все новые статьи</div>
-                            {% endfor %}
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="email_digest" id="emailDigest" checked>
-                            <label class="form-check-label" for="emailDigest">
-                                Получать дайджест на email
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="push_notifications" id="pushNotifications">
-                            <label class="form-check-label" for="pushNotifications">
-                                Push-уведомления
-                            </label>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary">Подписаться</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-{% endif %}
 
 <!-- Добавляем стили -->
 <style>
@@ -420,36 +384,59 @@
     .list-group-item:last-child {
         border-bottom: none;
     }
+    /* Стили для бейджей с крестиком */
+    .badge a {
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    .badge a:hover {
+        opacity: 1;
+    }
+    .badge.bg-warning a {
+        color: #212529 !important;
+    }
+    #reset-filters {
+        transition: all 0.2s;
+    }
+    #reset-filters:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
 </style>
+{% endblock %}
 
-<!-- Добавляем JavaScript -->
+{% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Кнопки поделиться
-        document.querySelectorAll('.share-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const url = window.location.origin + this.dataset.url;
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Новость',
-                        url: url
-                    }).catch(console.error);
-                } else {
-                    navigator.clipboard.writeText(url).then(() => {
-                        alert('Ссылка скопирована в буфер обмена');
-                    });
-                }
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    // Кнопка сброса всех фильтров
+    const resetBtn = document.getElementById('reset-filters');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            // Очищаем все поля формы
+            const searchInput = document.getElementById('search-query');
+            const categorySelect = document.getElementById('category-filter');
+            const sourceSelect = document.getElementById('source-filter');
+            
+            if (searchInput) searchInput.value = '';
+            if (categorySelect) categorySelect.value = '';
+            if (sourceSelect) sourceSelect.value = '';
+            
+            // Создаем URL без параметров и перенаправляем
+            window.location.href = window.location.pathname;
         });
-
-        // Автоматическое скрытие алертов через 5 секунд
-        setTimeout(() => {
-            document.querySelectorAll('.alert').forEach(alert => {
-                alert.style.transition = 'opacity 0.5s';
-                alert.style.opacity = '0';
-                setTimeout(() => alert.remove(), 500);
-            });
-        }, 5000);
+    }
+    
+    // Удаление отдельного фильтра через крестик
+    document.querySelectorAll('[data-remove-filter]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const filterToRemove = this.dataset.removeFilter;
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete(filterToRemove);
+            window.location.href = currentUrl.toString();
+        });
     });
+});
 </script>
 {% endblock %}

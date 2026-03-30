@@ -1,19 +1,32 @@
 /* Основные стили */
-:root {
-    --primary-color: #0d6efd;
-    --secondary-color: #6c757d;
-    --success-color: #198754;
-    --background-light: #ffffff;
-    --text-dark: #212529;
-    --border-color: #dee2e6;
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 body {
     background-color: #f8f9fa;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
-/* Карточки и контейнеры */
+/* Главный контейнер - занимает всё свободное пространство */
+main {
+    flex: 1 0 auto;
+}
+
+/* Контейнер для контента - центрируем */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Остальные стили */
 .card {
     border-radius: 16px;
     overflow: hidden;
@@ -22,15 +35,6 @@ body {
 
 .shadow-sm {
     box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
-}
-
-/* Анимации */
-.hover-scale {
-    transition: transform 0.2s;
-}
-
-.hover-scale:hover {
-    transform: scale(1.02);
 }
 
 /* Кнопки */
@@ -164,19 +168,10 @@ body {
     }
 }
 
-/* Скелетон-загрузка (для будущего использования) */
-.skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-    border-radius: 4px;
-}
-
-@keyframes loading {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
+/* Футер */
+footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    background-color: #fff;
+    border-top: 1px solid #e9ecef;
 }

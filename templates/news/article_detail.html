@@ -1,15 +1,19 @@
+<!-- Филатова Юля, ИСП-422р -->
+
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ article.title }} - Новостной агрегатор{% endblock %}
+{% block title %}{{ article.title }} - Сборник новостей{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-lg-8 mx-auto">
         <!-- Статья -->
         <article class="card border-0 shadow-sm">
-            {% if article.image_url %}
-                <img src="{{ article.image_url }}" class="card-img-top" alt="{{ article.title }}" style="max-height: 400px; object-fit: cover;">
+            {% if article.image %}
+                <img src="{{ article.image.url }}" class="img-fluid rounded" alt="{{ article.title }}">
+            {% elif article.image_url %}
+                <img src="{{ article.image_url }}" class="img-fluid rounded" alt="{{ article.title }}">
             {% endif %}
             
             <div class="card-body">
@@ -40,26 +44,7 @@
                     </div>
                     
                     <div class="d-flex gap-2">
-                        {% if user.is_authenticated %}
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-plus-circle me-1"></i>В подборку
-                                </button>
-                                <ul class="dropdown-menu">
-                                    {% for collection in user.collections.all %}
-                                        <li>
-                                            <a class="dropdown-item" href="{% url 'news:add_to_collection' collection.id article.id %}">
-                                                {{ collection.name }}
-                                            </a>
-                                        </li>
-                                    {% empty %}
-                                        <li><span class="dropdown-item-text text-muted">Нет подборок</span></li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item" href="{% url 'news:create_collection' %}">Создать подборку</a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            
+                        {% if user.is_authenticated %}  
                             <a href="{% url 'news:save_article' article.pk %}" class="btn btn-outline-danger {% if saved %}active{% endif %}">
                                 <i class="{% if saved %}fas{% else %}far{% endif %} fa-bookmark me-1"></i>
                                 {% if saved %}Сохранено{% else %}Сохранить{% endif %}
@@ -111,29 +96,86 @@
     </div>
 </div>
 
-<!-- Комментарии (можно добавить позже) -->
+<!-- Комментарии -->
 <div class="row mt-4">
     <div class="col-lg-8 mx-auto">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white">
-                <h5 class="mb-0">Комментарии</h5>
+                <h5 class="mb-0">
+                    <i class="fas fa-comments me-2 text-primary"></i>
+                    Комментарии ({{ article.comments.count }})
+                </h5>
             </div>
             <div class="card-body">
+                <!-- Форма добавления комментария -->
                 {% if user.is_authenticated %}
-                    <form class="mb-3">
+                    <form method="post" action="{% url 'news:add_comment' article.pk %}" id="comment-form">
+                        {% csrf_token %}
                         <div class="mb-3">
-                            <textarea class="form-control" rows="2" placeholder="Напишите комментарий..."></textarea>
+                            <textarea name="text" class="form-control" rows="3" 
+                                      placeholder="Напишите ваш комментарий..." 
+                                      maxlength="1000" required></textarea>
+                            <div class="text-muted small mt-1" id="char-count">0 / 1000</div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Отправить</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Отправить
+                        </button>
                     </form>
+                    <hr>
                 {% else %}
-                    <p class="text-muted">
-                        <a href="{% url 'accounts:login' %}">Войдите</a>, чтобы оставить комментарий
-                    </p>
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="alert-link">Войдите</a>, чтобы оставить комментарий
+                    </div>
                 {% endif %}
                 
-                <div class="text-muted text-center py-3">
-                    Функция комментариев будет доступна позже
+                <!-- Список комментариев -->
+                <div id="comments-list">
+                    {% for comment in article.comments.all %}
+                        <div class="comment mb-3 pb-3 border-bottom" id="comment-{{ comment.id }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="text-primary">
+                                        <i class="fas fa-user-circle me-1"></i>
+                                        {{ comment.user.username }}
+                                    </strong>
+                                    <small class="text-muted ms-2">
+                                        {{ comment.created_at|date:"d.m.Y H:i" }}
+                                        {% if comment.is_edited %}
+                                            <span class="badge bg-secondary ms-1">ред.</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% if user == comment.user or user.is_staff %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-link text-muted" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <button class="dropdown-item edit-comment" data-id="{{ comment.id }}" data-text="{{ comment.text|escapejs }}">
+                                                    <i class="fas fa-edit me-2"></i>Редактировать
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item text-danger delete-comment" data-id="{{ comment.id }}">
+                                                    <i class="fas fa-trash-alt me-2"></i>Удалить
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="comment-text mt-2">
+                                {{ comment.text|linebreaksbr }}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                            <p>Пока нет комментариев. Будьте первым!</p>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

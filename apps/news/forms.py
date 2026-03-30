@@ -1,5 +1,6 @@
 from django import forms
-from .models import Article, Collection
+from .models import Article, Comment
+from .constants import BAD_WORDS, CENSORED_WORD
 
 class ArticleSearchForm(forms.Form):
     query = forms.CharField(required=False, widget=forms.TextInput(attrs={
@@ -21,12 +22,58 @@ class ArticleSearchForm(forms.Form):
             (s.id, s.name) for s in Source.objects.filter(is_active=True)
         ]
 
-class CollectionForm(forms.ModelForm):
+class CommentForm(forms.ModelForm):
     class Meta:
-        model = Collection
-        fields = ['name', 'description', 'is_public']
+        model = Comment
+        fields = ['text']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Название подборки'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Описание (необязательно)'}),
-            'is_public': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'text': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Напишите ваш комментарий...',
+                'maxlength': 1000
+            })
         }
+        labels = {
+            'text': ''
+        }
+    
+    def clean_text(self):
+        """Фильтрация нежелательных слов"""
+        from .constants import BAD_WORDS, CENSORED_WORD
+        
+        text = self.cleaned_data.get('text', '')
+        
+        # Проверяем на пустоту
+        if not text or len(text.strip()) == 0:
+            raise forms.ValidationError('Комментарий не может быть пустым')
+        
+        # Проверяем длину
+        if len(text) < 3:
+            raise forms.ValidationError('Комментарий слишком короткий (минимум 3 символа)')
+        
+        if len(text) > 1000:
+            raise forms.ValidationError('Комментарий слишком длинный (максимум 1000 символов)')
+        
+        # Фильтрация нежелательных слов
+        original_text = text
+        lower_text = text.lower()
+        
+        for bad_word in BAD_WORDS:
+            if bad_word.lower() in lower_text:
+                # Заменяем слово на ***
+                import re
+                pattern = re.compile(re.escape(bad_word), re.IGNORECASE)
+                text = pattern.sub(CENSORED_WORD, text)
+        
+        # Если были замены, добавляем предупреждение
+        if text != original_text:
+            self.add_warning('Комментарий содержит нежелательные выражения, они были заменены на ***')
+        
+        return text.strip()
+    
+    def add_warning(self, message):
+        """Добавляем предупреждение в форму"""
+        if not hasattr(self, 'warnings'):
+            self.warnings = []
+        self.warnings.append(message)

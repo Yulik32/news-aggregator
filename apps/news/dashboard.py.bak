@@ -1,0 +1,63 @@
+from unfold.dashboard import Dashboard
+from unfold.dashboard.modules import RecentActions, AppList, LinkList
+
+def dashboard_callback(request, context):
+    """Кастомный дашборд для админки Unfold"""
+    
+    # Импортируем модели внутри функции, чтобы избежать циклических импортов
+    from .models import Article, Source, Category
+    
+    # Создаем дашборд
+    dashboard = Dashboard()
+    
+    # Блок 1: Быстрые действия
+    dashboard.append(
+        LinkList(
+            title="Быстрые действия",
+            description="Часто используемые операции",
+            links=[
+                {"title": "➕ Добавить новость", "url": "/admin/news/article/add/"},
+                {"title": "📡 Добавить источник", "url": "/admin/news/source/add/"},
+                {"title": "🏷️ Добавить категорию", "url": "/admin/news/category/add/"},
+            ],
+            column=1,
+        )
+    )
+    
+    # Блок 2: Последние новости
+    dashboard.append(
+        AppList(
+            title="Последние новости",
+            description="Недавно добавленные статьи",
+            models=["apps.news.models.Article"],
+            limit=5,
+            column=1,
+        )
+    )
+    
+    # Блок 3: Статистика
+    dashboard.append(
+        LinkList(
+            title="📊 Статистика",
+            description="Текущее состояние базы данных",
+            links=[
+                {"title": f"📰 Всего статей: {Article.objects.count()}", "url": "/admin/news/article/"},
+                {"title": f"📡 Активных источников: {Source.objects.filter(is_active=True).count()}", "url": "/admin/news/source/"},
+                {"title": f"🏷️ Категорий: {Category.objects.count()}", "url": "/admin/news/category/"},
+                {"title": f"⭐ Сохраненных статей: {Article.objects.filter(saved_by__isnull=False).distinct().count()}", "url": "/admin/news/savedarticle/"},
+            ],
+            column=2,
+        )
+    )
+    
+    # Блок 4: Последние действия
+    dashboard.append(
+        RecentActions(
+            title="Недавние действия",
+            description="Последние изменения в системе",
+            limit=10,
+            column=2,
+        )
+    )
+    
+    return dashboard
